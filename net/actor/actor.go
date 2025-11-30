@@ -37,17 +37,17 @@ type (
 	State int
 
 	Actor struct {
-		system           *System               // actor system
-		path             *cfacade.ActorPath    // actor path
-		state            State                 // actor state
-		close            chan struct{}         // close flag
-		handler          cfacade.IActorHandler // actor handler
-		localMail        *mailbox              // local message mailbox
-		remoteMail       *mailbox              // remote message mailbox
-		event            *actorEvent           // event
-		child            *actorChild           // child actor
-		timer            *actorTimer           // timer
-		lastAt           int64                 // last process time (count of seconds)
+		system           *System               // actor system Actor 系统
+		path             *cfacade.ActorPath    // actor path   通过Path可以找到Actor
+		state            State                 // actor state	当前的状态
+		close            chan struct{}         // close flag	关闭标志
+		handler          cfacade.IActorHandler // actor handler 可以处理Actor的接口
+		localMail        *mailbox              // local message mailbox 处理客户端消息的邮箱
+		remoteMail       *mailbox              // remote message mailbox 处理Actor之间消息的邮箱
+		event            *actorEvent           // event 事件
+		child            *actorChild           // child actor 子对象
+		timer            *actorTimer           // timer  定时器
+		lastAt           int64                 // last process time (count of seconds) 上次处理时间（单位：秒）
 		arrivalElapsed   int64                 // arrival elapsed for message
 		executionElapsed int64                 // execution elapsed for message
 	}

@@ -12,19 +12,24 @@ const (
 	updateTimerFuncName = "_updateTimer_"
 )
 
+// Actor的定时器系统
 type (
 	actorTimer struct {
 		thisActor    *Actor
 		timerInfoMap map[uint64]*timerInfo //key:timerID,value:*timerInfo
 	}
-
+	// 定时器信息
 	timerInfo struct {
+		// 时间轮定时器
 		timer *cherryTimeWheel.Timer
-		fn    func()
-		once  bool
+		// 回调函数
+		fn func()
+		// 是否会一次性定时器
+		once bool
 	}
 )
 
+// 创建定时器系统
 func newTimer(thisActor *Actor) actorTimer {
 	return actorTimer{
 		thisActor:    thisActor,
@@ -32,6 +37,7 @@ func newTimer(thisActor *Actor) actorTimer {
 	}
 }
 
+// 停止前调用
 func (p *actorTimer) onStop() {
 	p.RemoveAll()
 	p.thisActor = nil

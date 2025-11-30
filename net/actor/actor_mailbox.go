@@ -8,11 +8,12 @@ import (
 )
 
 type mailbox struct {
-	queue                                 // queue
+	queue                                 // queue 邮件队列
 	name    string                        // 邮箱名
 	funcMap map[string]*creflect.FuncInfo // 已注册的函数
 }
 
+// 新邮箱
 func newMailbox(name string) mailbox {
 	return mailbox{
 		queue:   newQueue(),
@@ -21,6 +22,7 @@ func newMailbox(name string) mailbox {
 	}
 }
 
+// 邮件对应的处理函数
 func (p *mailbox) Register(funcName string, fn interface{}) {
 	if funcName == "" || len(funcName) < 1 {
 		clog.Errorf("[%s] Func name is empty.", fn)
@@ -32,7 +34,7 @@ func (p *mailbox) Register(funcName string, fn interface{}) {
 		clog.Errorf("funcName = %s, err = %v", funcName, err)
 		return
 	}
-
+	// 已经注册
 	if _, found := p.funcMap[funcName]; found {
 		clog.Errorf("funcName = %s, already exists.", funcName)
 		return
@@ -41,11 +43,13 @@ func (p *mailbox) Register(funcName string, fn interface{}) {
 	p.funcMap[funcName] = &funcInfo
 }
 
+// 根据名称获得处理函数
 func (p *mailbox) GetFuncInfo(funcName string) (*creflect.FuncInfo, bool) {
 	funcInfo, found := p.funcMap[funcName]
 	return funcInfo, found
 }
 
+// 弹出一个消息
 func (p *mailbox) Pop() *cfacade.Message {
 	v := p.queue.Pop()
 	if v == nil {
@@ -61,13 +65,16 @@ func (p *mailbox) Pop() *cfacade.Message {
 	return msg
 }
 
+// 压入一个消息
 func (p *mailbox) Push(m *cfacade.Message) {
 	if m != nil {
+		// 投递时间
 		m.PostTime = ctime.Now().ToMillisecond()
 		p.queue.Push(m)
 	}
 }
 
+// 结束前处理
 func (p *mailbox) onStop() {
 	for key := range p.funcMap {
 		delete(p.funcMap, key)

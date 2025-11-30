@@ -86,6 +86,7 @@ func (p *System) GetActor(id string) (*Actor, bool) {
 	return actor, found
 }
 
+// 活动子Actor
 func (p *System) GetChildActor(actorID, childID string) (*Actor, bool) {
 	parentActor, found := p.GetActor(actorID)
 	if !found {
@@ -95,6 +96,7 @@ func (p *System) GetChildActor(actorID, childID string) (*Actor, bool) {
 	return parentActor.child.GetActor(childID)
 }
 
+// 删除Actor
 func (p *System) removeActor(actorID string) {
 	p.actorMap.Delete(actorID)
 }

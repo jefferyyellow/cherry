@@ -13,6 +13,7 @@ type (
 	}
 )
 
+// 事件
 type (
 	IEvent interface {
 		Register(name string, fn IEventFunc, uniqueID ...int64)     // 注册事件
@@ -23,6 +24,7 @@ type (
 	IEventFunc func(cfacade.IEventData) // 接收事件数据时的处理函数
 )
 
+// 邮箱
 type (
 	IMailBox interface {
 		Register(funcName string, fn interface{}) // 注册执行函数
@@ -30,6 +32,7 @@ type (
 	}
 )
 
+// 定时器
 type (
 	ITimer interface {
 		Add(d time.Duration, fn func(), async ...bool) uint64                   // 添加定时器,循环执行

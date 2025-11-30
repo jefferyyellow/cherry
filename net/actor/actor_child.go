@@ -8,6 +8,7 @@ import (
 	cfacade "github.com/cherry-game/cherry/facade"
 )
 
+// 应该是带有子Actor的Actor
 type actorChild struct {
 	thisActor   *Actor
 	childActors *sync.Map // key:childActorID, value:*actor
