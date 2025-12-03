@@ -15,6 +15,7 @@ import (
 	cproto "github.com/cherry-game/cherry/net/proto"
 )
 
+// 调用本地函数
 func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message) {
 	if app == nil {
 		clog.Errorf("[InvokeLocalFunc] app is nil. [message = %+v]", m)
@@ -29,6 +30,7 @@ func InvokeLocalFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade
 	fi.Value.Call(values)
 }
 
+// 调用远程函数
 func InvokeRemoteFunc(app cfacade.IApplication, fi *creflect.FuncInfo, m *cfacade.Message) {
 	if app == nil {
 		clog.Errorf("[InvokeRemoteFunc] app is nil. [message = %+v]", m)

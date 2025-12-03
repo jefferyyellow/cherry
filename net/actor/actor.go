@@ -37,7 +37,7 @@ type (
 	State int
 
 	Actor struct {
-		system           *System               // actor system Actor 系统
+		system           *System               // actor system 所属的Actor系统
 		path             *cfacade.ActorPath    // actor path   通过Path可以找到Actor
 		state            State                 // actor state	当前的状态
 		close            chan struct{}         // close flag	关闭标志
@@ -53,8 +53,11 @@ type (
 	}
 )
 
+// go routine跑的
 func (p *Actor) run() {
+	// 初始化
 	p.onInit()
+	// 停止时调用
 	defer p.onStop()
 
 	for {
@@ -65,14 +68,16 @@ func (p *Actor) run() {
 }
 
 func (p *Actor) loop() bool {
+	// 如果是停止状态
 	if p.state == StopState {
+		// 邮箱和事件列表都为空的情况下
 		if p.localMail.Count() < 1 &&
 			p.remoteMail.Count() < 1 &&
 			p.event.Count() < 1 {
 			return true
 		}
 	}
-
+	// 处理邮箱和事件
 	select {
 	case <-p.localMail.C:
 		{
@@ -95,6 +100,7 @@ func (p *Actor) loop() bool {
 	return false
 }
 
+// 处理本地邮箱
 func (p *Actor) processLocal() {
 	m := p.localMail.Pop()
 	if m == nil {
@@ -102,8 +108,9 @@ func (p *Actor) processLocal() {
 	}
 
 	p.lastAt = ctime.Now().ToSecond()
-
+	// 当Actor接收local消息时触发该函数
 	next, invoke := p.handler.OnLocalReceived(m)
+	// 调用对应的函数
 	if invoke {
 		p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m)
 	}
@@ -111,11 +118,13 @@ func (p *Actor) processLocal() {
 	if !next {
 		return
 	}
-
+	// 如果目标路径是一个子Actor
 	if m.TargetPath().IsChild() {
+		// 当前就是一个子Actor
 		if p.path.IsChild() {
 			p.invokeFunc(p.localMail, p.App(), p.system.localInvokeFunc, m)
 		} else {
+			// 查找对应的子Actor，放入子actor的本地邮箱中
 			if childActor, foundChild := p.findChildActor(m); foundChild {
 				childActor.PostLocal(m)
 			} else {
@@ -127,6 +136,7 @@ func (p *Actor) processLocal() {
 	}
 }
 
+// 处理远程邮箱
 func (p *Actor) processRemote() {
 	m := p.remoteMail.Pop()
 	if m == nil {
@@ -134,7 +144,7 @@ func (p *Actor) processRemote() {
 	}
 
 	p.lastAt = ctime.Now().ToSecond()
-
+	//  当Actor接收remote消息时执行的函数
 	next, invoke := p.handler.OnRemoteReceived(m)
 	if invoke {
 		p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m)
@@ -143,11 +153,13 @@ func (p *Actor) processRemote() {
 	if !next {
 		return
 	}
-
+	// 目标是子Actor
 	if m.TargetPath().IsChild() {
+		// 当前就是一个子Actor
 		if p.path.IsChild() {
 			p.invokeFunc(p.remoteMail, p.App(), p.system.remoteInvokeFunc, m)
 		} else {
+			// 从子对象查找，放入子actor的远程邮箱中
 			if childActor, foundChild := p.findChildActor(m); foundChild {
 				childActor.PostRemote(m)
 			} else {
@@ -159,6 +171,7 @@ func (p *Actor) processRemote() {
 	}
 }
 
+// 处理事件
 func (p *Actor) processEvent() {
 	eventData := p.event.Pop()
 	if eventData == nil {
@@ -169,7 +182,9 @@ func (p *Actor) processEvent() {
 	p.event.invokeFunc(eventData)
 }
 
+// 调用函数
 func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.InvokeFunc, m *cfacade.Message) {
+	// 找到对应的函数
 	funcInfo, found := mb.funcMap[m.FuncName]
 	if !found {
 		clog.Warnf("[%s] Function not found. [source = %s, target = %s -> %s]",
@@ -180,7 +195,7 @@ func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.Inv
 		)
 		return
 	}
-
+	// 到达的时间，计算是否已经超时
 	p.arrivalElapsed = m.PostTime - m.BuildTime
 	if p.arrivalElapsed > p.system.arrivalTimeOut {
 		clog.Warnf("[%s] Invoke timeout.[path = %s -> %s -> %s, postTime = %d, buildTime = %d, arrival = %dms]",
@@ -197,7 +212,9 @@ func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.Inv
 	now := ctime.Now().ToMillisecond()
 
 	defer func() {
+		// 计算执行时长
 		p.executionElapsed = ctime.Now().ToMillisecond() - now
+		// 执行超时，打印警告
 		if p.executionElapsed > p.system.executionTimeout {
 			clog.Warnf("[%s] Invoke timeout.[source = %s, target = %s->%s, execution = %dms]",
 				mb.name,
@@ -207,7 +224,7 @@ func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.Inv
 				p.executionElapsed,
 			)
 		}
-
+		// 是否出错
 		if rev := recover(); rev != nil {
 			clog.Errorf("[%s] Invoke error. [source = %s, target = %s->%s, type = %v]",
 				mb.name,
@@ -222,6 +239,7 @@ func (p *Actor) invokeFunc(mb *mailbox, app cfacade.IApplication, fn cfacade.Inv
 	fn(app, funcInfo, m)
 }
 
+// 查找子对象
 func (p *Actor) findChildActor(m *cfacade.Message) (*Actor, bool) {
 	// 如果当前actor为子actor,则终止本次消息处理
 	if p.path.IsChild() {
@@ -247,15 +265,17 @@ func (p *Actor) findChildActor(m *cfacade.Message) (*Actor, bool) {
 	return nil, false
 }
 
+// 初始化
 func (p *Actor) onInit() {
 	p.state = WorkerState
 	p.handler.OnInit()
 }
 
+// 停止
 func (p *Actor) onStop() {
 	cutils.Try(func() {
 		close(p.close)
-
+		// 停止并删除Actor
 		if p.path.IsParent() {
 			p.system.removeActor(p.ActorID())
 			p.child.onStop()
@@ -362,6 +382,7 @@ func (p *Actor) PostEvent(data cfacade.IEventData) {
 	p.system.PostEvent(data)
 }
 
+// 创建一个新actor
 func newActor(actorID, childID string, handler cfacade.IActorHandler, c *System) (*Actor, error) {
 	if strings.TrimSpace(actorID) == "" {
 		clog.Error("[newActor] actor id is nil.")
@@ -381,22 +402,28 @@ func newActor(actorID, childID string, handler cfacade.IActorHandler, c *System)
 		lastAt:  ctime.Now().ToSecond(),
 	}
 
+	// 创建本地邮箱
 	localMailbox := newMailbox(LocalName)
 	thisActor.localMail = &localMailbox
 
+	// 创建远程邮箱
 	remoteMailbox := newMailbox(RemoteName)
 	thisActor.remoteMail = &remoteMailbox
 
+	// 事件处理
 	event := newEvent(&thisActor)
 	thisActor.event = &event
 
+	// 子对象管理
 	child := newChild(&thisActor)
 	thisActor.child = &child
 
+	// 定时器
 	timer := newTimer(&thisActor)
 	thisActor.timer = &timer
 
 	// register update timer func
+	// 注册更新计时器函数
 	thisActor.remoteMail.Register(updateTimerFuncName, thisActor.timer._updateTimer_)
 
 	// spawn load!
